@@ -215,7 +215,7 @@ true`; generated Ansible references `{{ lookup('env', 'VAR') }}`.
 | Variable | Purpose |
 |----------|---------|
 | `AXONOPS_ORG` | AxonOps organisation slug |
-| `AXONOPS_API_TOKEN` | AxonOps API token (read and write). Passed to Terraform as `AXONOPS_API_KEY` and to Ansible as `AXONOPS_API_TOKEN` |
+| `AXONOPS_API_TOKEN` | AxonOps API token (read and write). Optional for `plan` (warns, writes the project, skips the backend plan); required for `apply`. Passed to Terraform as `AXONOPS_API_KEY` and to Ansible as `AXONOPS_API_TOKEN` |
 | `AXONOPS_BASE_URL` | Self-hosted server URL. Passed on as `AXONOPS_URL` (Ansible) and `AXONOPS_HOST`/`AXONOPS_PROTOCOL` (Terraform). Unset means AxonOps SaaS |
 | `AXONOPS_TOKEN_TYPE` | `Bearer` (SaaS, default) or `AxonApi` (self-hosted) |
 | `ANTHROPIC_API_KEY` | Anthropic model (when `--model anthropic`) |

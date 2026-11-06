@@ -33,6 +33,7 @@ type world struct {
 	exec              *exectest.Fake
 	applyFails        bool
 	planChanges       bool
+	tokenUnset        bool
 	out, errOut       bytes.Buffer
 	exit              int
 }
@@ -61,7 +62,7 @@ func (w *world) reset() {
 	w.dir = filepath.Join(os.TempDir(), fmt.Sprintf("axai-bdd-%d", os.Getpid()), strings.ReplaceAll(fmt.Sprint(w), "0x", ""))
 	_ = os.RemoveAll(w.dir)
 	w.planChanges = true
-	w.steps, w.applyFails = nil, false
+	w.steps, w.applyFails, w.tokenUnset = nil, false, false
 	w.out.Reset()
 	w.errOut.Reset()
 }
@@ -247,6 +248,9 @@ func (w *world) env(stdin string) cli.Env {
 	}
 	w.provider = &llmtest.Scripted{Steps: w.steps}
 	vars := map[string]string{"AXONOPS_API_TOKEN": token, "AXAI_PROVIDER": "anthropic", "HOME": w.dir}
+	if w.tokenUnset {
+		delete(vars, "AXONOPS_API_TOKEN")
+	}
 	return cli.Env{
 		In: strings.NewReader(stdin), Out: &w.out, Err: &w.errOut, Exec: w.exec,
 		Getenv:   func(k string) string { return vars[k] },
@@ -346,6 +350,26 @@ func (w *world) stateIs(status string) error {
 	return nil
 }
 
+func (w *world) noAPIToken() error { w.tokenUnset = true; return nil }
+
+func (w *world) backendPlanNotRun() error {
+	for _, name := range []string{"terraform", "tofu", "ansible-playbook"} {
+		for _, c := range w.exec.CallsTo(name) {
+			if len(c.Args) > 0 && c.Args[0] == "plan" {
+				return fmt.Errorf("%s plan ran", name)
+			}
+		}
+	}
+	return nil
+}
+
+func (w *world) warningContains(text string) error {
+	if !strings.Contains(w.errOut.String(), text) {
+		return fmt.Errorf("stderr does not contain %q:\n%s", text, w.errOut.String())
+	}
+	return nil
+}
+
 func (w *world) outputContains(text string) error {
 	if !strings.Contains(w.out.String(), text) {
 		return fmt.Errorf("output lacks %q:\n%s", text, w.out.String())
@@ -413,6 +437,9 @@ func TestFeatures(t *testing.T) {
 			sc.Step(`^nothing is written to the project directory$`, w.nothingWritten)
 			sc.Step(`^the project state is "([^"]*)"$`, w.stateIs)
 			sc.Step(`^the output contains "([^"]*)"$`, w.outputContains)
+			sc.Step(`^no AxonOps API token is set$`, w.noAPIToken)
+			sc.Step(`^the backend plan was not run$`, w.backendPlanNotRun)
+			sc.Step(`^the warning contains "([^"]*)"$`, w.warningContains)
 			sc.Step(`^nothing is destroyed$`, w.nothingDestroyed)
 			sc.Step(`^the model was asked to fix exactly (\d+) times$`, w.fixerAsked)
 		},

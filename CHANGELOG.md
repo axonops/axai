@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `axai plan` without `AXONOPS_API_TOKEN` warns, skips the cluster read and the Terraform/Ansible plan, and only writes the project. `axai apply` still requires the token.
 - `axai plan`, `axai apply` (alias `run`), `axai status` and `axai doctor`.
 - Terraform and Ansible project generation for AxonOps metric alert rules.
 - Deterministic guard that validates the model's spec against the catalogue.

@@ -33,3 +33,9 @@ Feature: axai apply
     When I run axai apply "Create an alert when disk usage is over 80%" with "--yes --max-fixes 2"
     Then the exit code is 3
     And the model was asked to fix exactly 2 times
+
+  Scenario: Missing API token stops apply
+    Given no AxonOps API token is set
+    When I run axai apply "Create an alert when disk usage is over 80%" with "--yes"
+    Then the exit code is 1
+    And nothing is written to the project directory

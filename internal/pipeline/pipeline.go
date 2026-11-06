@@ -38,6 +38,7 @@ type Options struct {
 	MaxFixes int
 	Commit   func(ctx context.Context, message string) // nil skips
 	Now      func() time.Time
+	Offline  bool // write the project but skip the backend plan
 }
 
 // Outcome describes how a run ended.
@@ -47,6 +48,7 @@ type Outcome string
 const (
 	NoChanges Outcome = "no changes"
 	Planned   Outcome = "planned"
+	Generated Outcome = "generated"
 	Declined  Outcome = "declined"
 	Applied   Outcome = "applied"
 )
@@ -79,6 +81,9 @@ func plan(ctx context.Context, o *Options) (Outcome, error) {
 	}
 	if err := o.Runner.Init(ctx); err != nil {
 		return "", err
+	}
+	if o.Offline {
+		return Generated, save(o, state.StatusGenerated, nil)
 	}
 	res, err := o.Runner.Plan(ctx)
 	if err != nil {

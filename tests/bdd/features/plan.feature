@@ -60,3 +60,11 @@ Feature: axai plan
     When I run axai plan "Create an alert and send an SMS" with backend "terraform"
     Then the exit code is 2
     And nothing is written to the project directory
+
+  Scenario: Missing API token plans offline with a warning
+    Given no AxonOps API token is set
+    When I run axai plan "Create an alert when disk usage is over 80%" with backend "terraform"
+    Then the exit code is 0
+    And the warning contains "AXONOPS_API_TOKEN is not set"
+    And the project contains "main.tf" with resource "axonops_metric_alert_rule"
+    And the backend plan was not run

@@ -176,11 +176,17 @@ func run(ctx context.Context, env Env, f flags, args []string, apply bool) error
 		return exit(ExitInput, "--backend must be ansible or terraform")
 	}
 	token := env.Getenv("AXONOPS_API_TOKEN")
-	if token == "" {
+	offline := token == ""
+	if offline && apply {
 		return exit(ExitInput, "set AXONOPS_API_TOKEN")
 	}
+	if offline {
+		fmt.Fprintln(env.Err, "warning: AXONOPS_API_TOKEN is not set; planning offline: no cluster context, backend plan skipped")
+	}
 	red := &redact.Redactor{}
-	red.Add(token)
+	if !offline {
+		red.Add(token)
+	}
 	out := red.Writer(env.Out)
 	defer func() { _ = out.Flush() }()
 
@@ -199,13 +205,15 @@ func run(ctx context.Context, env Env, f flags, args []string, apply bool) error
 		return exit(ExitInput, "%v", err)
 	}
 
-	rd, err := newReader(env, f.org, token)
-	if err != nil {
-		return exit(ExitInput, "%v", err)
-	}
-	cctx, err := rd.Cluster(ctx, f.clusterType, f.cluster)
-	if err != nil {
-		return exit(ExitRuntime, "read cluster context: %v", err)
+	var cctx read.Context
+	if !offline {
+		rd, err := newReader(env, f.org, token)
+		if err != nil {
+			return exit(ExitInput, "%v", err)
+		}
+		if cctx, err = rd.Cluster(ctx, f.clusterType, f.cluster); err != nil {
+			return exit(ExitRuntime, "read cluster context: %v", err)
+		}
 	}
 	dir := f.project
 	if dir == "" {
@@ -236,7 +244,7 @@ func run(ctx context.Context, env Env, f flags, args []string, apply bool) error
 		return exit(ExitInput, "%v", err)
 	}
 	opts := pipeline.Options{
-		Dir: dir, Request: request, Spec: s, Out: out, Yes: f.yes, MaxFixes: f.maxFixes,
+		Offline: offline, Dir: dir, Request: request, Spec: s, Out: out, Yes: f.yes, MaxFixes: f.maxFixes,
 		Confirm: func(prompt string) (bool, error) { return ask(env, prompt) },
 		Reviser: func(ctx context.Context, cur spec.Spec, failure string) (spec.Spec, error) {
 			return design.Revise(ctx, provider, in, cur, red.String(failure))
@@ -323,10 +331,13 @@ func ask(env Env, prompt string) (bool, error) {
 
 // axonopsEnv maps the axai environment onto what Terraform and Ansible read.
 func axonopsEnv(env Env, f flags, token string) []string {
-	e := []string{
-		"AXONOPS_API_KEY=" + token, "AXONOPS_API_TOKEN=" + token,
-		"AXONOPS_ORG=" + f.org, "AXONOPS_CLUSTER=" + f.cluster, "AXONOPS_CLUSTER_TYPE=" + f.clusterType,
+	var e []string
+	if token != "" {
+		e = append(e, "AXONOPS_API_KEY="+token, "AXONOPS_API_TOKEN="+token)
 	}
+	e = append(e,
+		"AXONOPS_ORG="+f.org, "AXONOPS_CLUSTER="+f.cluster, "AXONOPS_CLUSTER_TYPE="+f.clusterType,
+	)
 	if tt := tokenType(env); tt != "" {
 		e = append(e, "AXONOPS_TOKEN_TYPE="+tt)
 	}

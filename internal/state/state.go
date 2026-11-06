@@ -14,9 +14,10 @@ import (
 
 // Run statuses.
 const (
-	StatusPlanned = "planned"
-	StatusApplied = "applied"
-	StatusFailed  = "failed"
+	StatusPlanned   = "planned"
+	StatusGenerated = "generated"
+	StatusApplied   = "applied"
+	StatusFailed    = "failed"
 )
 
 // State is the content of state.json.
