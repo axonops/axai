@@ -24,3 +24,5 @@ vendor/
 # Env files
 .env
 .env.local
+*.pem
+*.key

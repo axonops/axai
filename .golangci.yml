@@ -24,12 +24,18 @@ linters:
     gosec:
       excludes:
         - G104  # errors unhandled (covered by errcheck)
+        - G204  # running terraform and ansible with computed arguments is the job
+        - G304  # reading files from computed paths is the job
+        - G306  # project files are meant to be readable
     revive:
       rules:
         - name: exported
           severity: warning
           disabled: false
   exclusions:
+    presets:
+      - common-false-positives
+      - std-error-handling
     rules:
       - path: _test\.go
         linters:
